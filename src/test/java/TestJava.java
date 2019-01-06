@@ -14,18 +14,18 @@ public class TestJava {
         String lightningBrowserDir = "L:\\PROJECT\\GPlayer\\lightningBrowser\\src\\main\\java\\";
         String databaseSrcDir = "L:\\PROJECT\\GPlayer\\database\\src\\main\\java\\";
         String adlibrarySrcDir = "L:\\PROJECT\\GPlayer\\adlibrary\\src\\main";
-//        String testFile = "C:\\Users\\Jaysen\\Documents\\LogTest.java";
-        String testFile = "L:\\PROJECT\\GPlayer\\Gplayer\\src\\main\\java\\com\\jayl\\gplayer\\MainPresenter.java";
-//real file
-//        String[] dirs = new String[]{GplayerModuSrcDir, lightningBrowserDir, databaseSrcDir, adlibrarySrcDir};
-//        for (int i = 0; i < dirs.length; i++) {
-//            String dir = dirs[i];
-//            File fileDir = new File(dir);
-//            loopFile(fileDir);
-//        }
+        String testFile = "C:\\Users\\Jaysen\\Documents\\LogTest.java";
+//        String testFile = "L:\\PROJECT\\GPlayer\\Gplayer\\src\\main\\java\\com\\jayl\\gplayer\\MainPresenter.java";
+
+        //real file
+        String[] dirs = new String[]{GplayerModuSrcDir, lightningBrowserDir, databaseSrcDir, adlibrarySrcDir};
+        for (String dir : dirs) {
+            File fileDir = new File(dir);
+            loopFile(fileDir, false);
+        }
         //test file
 //        replaceFileBaseLogText(new File(testFile), logEventFile);
-        replaceConsoleLogText(new File(testFile), logEventFile);
+//        replaceConsoleLogText(new File(testFile), logEventFile);
 
     }
 
@@ -51,12 +51,13 @@ public class TestJava {
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
         RandomAccessFile logEventRAF = new RandomAccessFile(constantSaveFileName, "rw");
         String line = null;
-
+        boolean modified = false;
         while ((line = randomAccessFile.readLine()) != null) {
             final long pointer = randomAccessFile.getFilePointer();
             if (line.contains("Log.") && !line.contains("FirebaseLog.")) {
 //                String[] split = line.split("\\+");
                 Set<String> fields = new HashSet<>();
+                String orignalLine = line;
                 int orignalLineLength = line.length();
                 String tmp = line;
                 line = loopIndexOfDoudleQoute(line, tmp, fields);
@@ -70,10 +71,37 @@ public class TestJava {
                 if (fields.size() > 0)
                     logEventRAF.writeBytes("}");
 
-                if (line.length() != orignalLineLength) {//replace text
+                if (!line.equals(orignalLine)) {//replace text
+                    modified = true;
                     replace(randomAccessFile, pointer, line, orignalLineLength, false);
                 }
             }
+        }
+        if (modified) {
+            randomAccessFile.seek(0);
+            String readLine;//escape package name
+            for (; ; ) {
+                readLine = randomAccessFile.readLine();
+                if (readLine != null) {
+                    if (readLine.startsWith("/*")
+                            || readLine.startsWith("*")
+                            || readLine.startsWith("package")) {
+                        System.out.println("header:" + readLine);
+                        continue;
+                    }
+                    System.out.println("not header：" + readLine + " length:" + readLine.length());
+                    break;
+                } else {
+                    break;
+                }
+            }
+            long filePointer = randomAccessFile.getFilePointer();
+            System.out.println("randomAccessFile=" + randomAccessFile.length());
+            System.out.println("filePointer before=" + filePointer);
+            filePointer = filePointer - readLine.length() - 2;
+            System.out.println("filePointer after =" + filePointer);
+            String insertContent = "import com.jayl.gplayer.ads.analytics.LogConsoleConstant;";
+            replace(randomAccessFile, filePointer, insertContent, readLine.length(), true);
         }
     }
 
@@ -98,9 +126,18 @@ public class TestJava {
                                 .replace("\\", "")
                                 .replace("=", "")
                                 .replace("》", "")
+                                .replace(">", "")
                                 .replace("[", "")
                                 .replace("]", "")
                                 .replace(" ", "")
+                                .replace(";", "")
+                                .replace(".", "")
+                                .replace("<", "")
+                                .replace("#", "")
+                                .replace("^", "")
+                                .replace("*", "")
+                                .replace("|", "")
+                                .replace("\\", "")
                                 .replace("+", "_")
                                 .replace("】", "")
                                 .replace("【", "")
@@ -111,19 +148,24 @@ public class TestJava {
                                 .replace(",", "")
                                 .replace(".", "")
                                 .replace("!", "")
+                                .replace("?", "")
                                 .replace("。", "")
                                 .replace("，", "")
                                 .replace("'", "")
                                 .replace("\"", "")
+                                .replace("@", "")
+                                .replace("%", "")
+                                .replace("$", "")
+                                .replace("&", "")
                                 .replace(":", "");
                         System.out.println("replace: " + replace);
                         if (replace.length() > 0) {
                             String filedName;
-                            if (replace.length() > 20) {
-                                filedName = replace.substring(0, 20);
-                            } else {
-                                filedName = replace;
-                            }
+//                            if (replace.length() > 30) {
+//                                filedName = replace.substring(0, 20);
+//                            } else {
+                            filedName = replace;
+//                            }
                             line = line.replace("\"" + substring + "\"", "LogConsoleConstant." + filedName);
                             String field = "public static final String " + filedName + "=\"" + substring + "\";";
                             System.out.println("field: " + field);
@@ -221,7 +263,8 @@ public class TestJava {
      * @param points        指针位置
      * @param insertContent 插入内容
      **/
-    public static void replace(RandomAccessFile raf, long points, String insertContent, int replaceContentLength, boolean isInsert) {
+    public static void replace(RandomAccessFile raf, long points, String insertContent, int replaceContentLength,
+                               boolean isInsert) {
         try {
             File tmp = File.createTempFile("tmp", null);
 //            tmp.deleteOnExit();//在JVM退出时删除
@@ -232,6 +275,8 @@ public class TestJava {
             raf.seek(points);
             /**将插入点后的内容读入临时文件夹**/
             byte[] buff = new byte[1024];
+
+            //+++++++++++++++++++++++++++++++++++++++++
             //用于保存临时读取的字节数
             int hasRead = 0;
             //循环读取插入点后的内容
@@ -239,29 +284,31 @@ public class TestJava {
                 // 将读取的数据写入临时文件中
                 tmpOut.write(buff, 0, hasRead);
             }
-
+            //+++++++++++++++++++++++++++++++++++++++++
             if (!isInsert) {
                 //插入需要指定添加的数据
                 raf.seek(points - replaceContentLength);//返回原来的插入处
-            } else {
+            } else if (isInsert) {
                 raf.seek(points);
             }
+            //+++++++++++++++++++++++++++++++++++++++++
             //追加需要追加的内容
             int length = insertContent.length();
             raf.writeBytes(insertContent + "\r\n");
-
-
+            //+++++++++++++++++++++++++++++++++++++++++
             hasRead = tmpIn.read(buff);
             if (hasRead <= 0) {
-                if (length < replaceContentLength) {
+                if (!isInsert && length < replaceContentLength) {//要是替换的话，要上删除多余的该行未替换的字符
                     int gap = replaceContentLength - length;
                     raf.setLength(points - gap);
                     raf.seek(points - gap);//恢復當前讀寫的位置;
                 }
-            } else {
-                if (length < replaceContentLength) {
+            } else {//有内容回存储追加
+                //+++++++++++++++++++++++++++++++++++++++++
+                if (!isInsert && length < replaceContentLength) {
                     int gap = replaceContentLength - length;
                     raf.seek(points - gap);
+                    raf.setLength(points - gap + tmp.length());//truncate file length
                 }
                 //最后追加临时文件中的内容
                 do {
@@ -270,6 +317,7 @@ public class TestJava {
                 } while ((hasRead = tmpIn.read(buff)) > 0);
                 raf.seek(points);//恢復當前讀寫的位置;
             }
+            //+++++++++++++++++++++++++++++++++++++++++
             tmp.deleteOnExit();
         } catch (Exception e) {
             e.printStackTrace();
