@@ -14,8 +14,8 @@ public class TestJava {
         String lightningBrowserDir = "L:\\PROJECT\\GPlayer\\lightningBrowser\\src\\main\\java\\";
         String databaseSrcDir = "L:\\PROJECT\\GPlayer\\database\\src\\main\\java\\";
         String adlibrarySrcDir = "L:\\PROJECT\\GPlayer\\adlibrary\\src\\main";
-        String testFile = "C:\\Users\\Jaysen\\Documents\\LogTest.java";
-//        String testFile = "L:\\PROJECT\\GPlayer\\Gplayer\\src\\main\\java\\com\\jayl\\gplayer\\MainPresenter.java";
+//        String testFile = "C:\\Users\\Jaysen\\Documents\\LogTest.java";
+        String testFile = "L:\\PROJECT\\GPlayer\\lightningBrowser\\src\\main\\java\\acr\\browser\\lightning\\activity\\BrowserActivity.java";
 
         //real file
         String[] dirs = new String[]{GplayerModuSrcDir, lightningBrowserDir, databaseSrcDir, adlibrarySrcDir};
@@ -63,7 +63,7 @@ public class TestJava {
                 line = loopIndexOfDoudleQoute(line, tmp, fields);
 
 //                line = line.replace("\"", "");//?
-
+                //写常量
                 for (String next : fields) {//write constant
                     logEventRAF.seek(logEventRAF.length() - 1);
                     logEventRAF.writeBytes(next + "\r\n");
@@ -83,13 +83,18 @@ public class TestJava {
             for (; ; ) {
                 readLine = randomAccessFile.readLine();
                 if (readLine != null) {
-                    if (readLine.startsWith("/*")
-                            || readLine.startsWith("*")
-                            || readLine.startsWith("package")) {
+                    boolean b = readLine.contains("*");
+                    boolean b1 = readLine.contains("/*");
+                    boolean aPackage = readLine.contains("package");
+                    System.out.println("startsWith(\"\\*\"):" + b + " startsWith(\"/*\"):" + b1 + "package:" + aPackage);
+                    if (b1 || b || readLine.length() == 0) {
                         System.out.println("header:" + readLine);
                         continue;
                     }
                     System.out.println("not header：" + readLine + " length:" + readLine.length());
+                    if (aPackage) {
+                        break;
+                    }
                     break;
                 } else {
                     break;
@@ -98,7 +103,7 @@ public class TestJava {
             long filePointer = randomAccessFile.getFilePointer();
             System.out.println("randomAccessFile=" + randomAccessFile.length());
             System.out.println("filePointer before=" + filePointer);
-            filePointer = filePointer - readLine.length() - 2;
+//            filePointer = filePointer - readLine.length() - 2;
             System.out.println("filePointer after =" + filePointer);
             String insertContent = "import com.jayl.gplayer.ads.analytics.LogConsoleConstant;";
             replace(randomAccessFile, filePointer, insertContent, readLine.length(), true);
